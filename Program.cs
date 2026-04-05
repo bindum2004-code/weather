@@ -6,14 +6,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
-// ── HTTP client (used by WeatherService & GroqChatService) ─
+// ── HTTP client ──────────────────────────────────────────
 builder.Services.AddHttpClient();
 
-// ── App settings ────────────────────────────────────────
+// ── App settings ─────────────────────────────────────────
 builder.Services.Configure<SupabaseSettings>(
     builder.Configuration.GetSection("SupabaseSettings"));
 
-// ── Domain services ──────────────────────────────────────
+// ── Services ─────────────────────────────────────────────
 builder.Services.AddSingleton<WeatherService>();
 builder.Services.AddSingleton<GroqChatService>();
 builder.Services.AddScoped<SupabaseService>();
@@ -21,7 +21,11 @@ builder.Services.AddSingleton<BlogService>();
 
 var app = builder.Build();
 
-// ── Middleware pipeline ──────────────────────────────────
+// ✅ 🔥 ADD THIS LINE (IMPORTANT FOR RENDER)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Urls.Add($"http://0.0.0.0:{port}");
+
+// ── Middleware ───────────────────────────────────────────
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
