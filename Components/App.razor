@@ -1,0 +1,54 @@
+@using Microsoft.AspNetCore.Components.Routing
+@using static Microsoft.AspNetCore.Components.Web.RenderMode
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="css/nimbus.css" />
+    <link rel="stylesheet" href="css/nimbus-extra.css" />
+    <link rel="stylesheet" href="css/nimbus-premium.css" />
+    <link rel="stylesheet" href="css/nimbus-layout.css" />
+    <link rel="stylesheet" href="css/chat-animations.css" />
+    <link rel="stylesheet" href="css/nimbus-enhancements.css" />
+    <link rel="stylesheet" href="NimbusWeather.styles.css" />
+    <!-- Layout fix: resolves hidden panels, ticker overlap, column sizing -->
+    <link rel="stylesheet" href="css/nimbus-fix.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <!-- Apply saved theme BEFORE render to prevent flash -->
+    <script>
+        (function () {
+            var storedTheme = localStorage.getItem('nim-theme');
+            var systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            var theme = storedTheme || systemTheme;
+            document.documentElement.setAttribute('data-theme', theme);
+            document.documentElement.classList.toggle('dark', theme === 'dark');
+            document.documentElement.classList.toggle('light', theme === 'light');
+            localStorage.setItem('nim-theme', theme);
+        })();
+    </script>
+    <HeadOutlet @rendermode="InteractiveServer" />
+</head>
+<body>
+    <!-- Canvas background -->
+    <canvas id="bgCanvas"></canvas>
+
+    <!-- Custom cursor -->
+    <div class="c-dot"></div>
+    <div class="c-ring"></div>
+
+    <Routes @rendermode="InteractiveServer" />
+
+    <!-- Blazor error UI -->
+    <div id="blazor-error-ui">
+        An unhandled error has occurred.
+        <a href="" class="reload">Reload</a>
+        <a class="dismiss">🗙</a>
+    </div>
+
+    <script src="_framework/blazor.web.js"></script>
+    <script src="js/nimbus.js"></script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+@inherits LayoutComponentBase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@inject SupabaseService Supabase
+
+<nav class="nav">
+    <a href="/" class="nav-logo">
+        <div class="logo-mark">⛅</div>
+        <span class="logo-word">NIMBUS</span>
+    </a>
+    <div class="nav-links">
+        <NavLink href="/" class="nav-link" Match="NavLinkMatch.All">Home</NavLink>
+        <NavLink href="/chat" class="nav-link">AI Chat</NavLink>
+        <NavLink href="/dashboard" class="nav-link">Dashboard</NavLink>
+        <NavLink href="/forecast" class="nav-link">Forecast</NavLink>
+    </div>
+    <div class="nav-r">
+        @if (Supabase.IsLoggedIn)
+        {
+            <span class="nav-user-pill">
+                👋 <span class="nav-user-email">@(Supabase.CurrentUser?.Email ?? "User")</span>
+            </span>
+            <button class="theme-btn" @onclick="ToggleTheme" title="Toggle theme">
+                <span>@(_isDark ? "☀️" : "🌙")</span>
+            </button>
+            <button class="nav-logout" @onclick="LogoutAsync" title="Logout">Logout</button>
+        }
+        else
+        {
+            <button class="theme-btn" @onclick="ToggleTheme" title="Toggle theme">
+                <span>@(_isDark ? "☀️" : "🌙")</span>
+            </button>
+            <a href="/login" class="nav-cta">Login ↗</a>
+        }
+    </div>
+    <button class="hamburger" @onclick="ToggleMenu">☰</button>
+</nav>
+
+<div class="@(_menuOpen ? "mob-menu open" : "mob-menu")">
+    <NavLink href="/" class="nav-link" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
+    <NavLink href="/chat" class="nav-link" @onclick="CloseMenu">AI Chat</NavLink>
+    <NavLink href="/dashboard" class="nav-link" @onclick="CloseMenu">Dashboard</NavLink>
+    <NavLink href="/forecast" class="nav-link" @onclick="CloseMenu">Forecast</NavLink>
+    @if (Supabase.IsLoggedIn)
+    {
+        <button class="nav-link mob-logout" @onclick="LogoutAsync">Logout</button>
+    }
+    else
+    {
+        <a href="/login" class="nav-link mob-login" @onclick="CloseMenu">Login ↗</a>
+    }
+</div>
+
+@Body
+
+<a href="/chat" class="fab" title="Open AI Chat">
+    <span>🤖</span>
+</a>
+
+<div class="ticker">
+    <div class="ticker-inner">
+        <span>⛅ NIMBUS WEATHER TERMINAL</span><span class="ticker-sep">◆</span>
+        <span>AI FUNCTION CALLING LIVE</span><span class="ticker-sep">◆</span>
+        <span>GROQ · GPT-4o-mini · OPENWEATHER</span><span class="ticker-sep">◆</span>
+        <span>.NET 8 · BLAZOR SERVER</span><span class="ticker-sep">◆</span>
+        <span>SUPABASE AUTH</span><span class="ticker-sep">◆</span>
+        <span>200+ CITIES WORLDWIDE</span>
+    </div>
+</div>
+
+@code {
+    private bool _isDark = true;
+    private bool _menuOpen = false;
+
+    private async Task LogoutAsync()
+    {
+        await Supabase.LogoutAsync();
+        _menuOpen = false;
+        Nav.NavigateTo("/login", forceLoad: false);
+        StateHasChanged();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var stored = await JS.InvokeAsync<string>("nimbusGetTheme");
+                _isDark = stored != "light";
+                await JS.InvokeVoidAsync("nimbusSetTheme", _isDark);
+                StateHasChanged();
+            }
+            catch { }
+        }
+    }
+
+    private async Task ToggleTheme()
+    {
+        _isDark = !_isDark;
+        try { await JS.InvokeVoidAsync("nimbusSetTheme", _isDark); }
+        catch { }
+        StateHasChanged();
+    }
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void CloseMenu()  => _menuOpen = false;
+}

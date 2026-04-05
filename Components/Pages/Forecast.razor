@@ -1,0 +1,329 @@
+@page "/forecast"
+@inject WeatherService WxSvc
+@inject IJSRuntime JS
+@using NimbusWeather.Models
+
+<PageTitle>Forecast — Nimbus</PageTitle>
+
+<div class="page-wrap">
+
+    <div class="page-hd">
+        <div class="page-hd-left">
+            <div class="sec-eyebrow">Prediction</div>
+            <div class="pg-title">5-DAY FORECAST</div>
+            <div class="pg-sub">Plan ahead with detailed weather predictions</div>
+        </div>
+        <div class="search-row">
+            <input class="search-inp"
+                   placeholder="Enter city name…"
+                   value="@_city"
+                   @oninput="@(e => _city = e.Value?.ToString() ?? "")"
+                   @onkeydown="HandleKey" />
+            <button class="search-go" @onclick="LoadForecast" disabled="@_loading">
+                @(_loading ? "⏳" : "Search")
+            </button>
+            <button class="search-go" @onclick="UseMyLocation" disabled="@_loading" style="margin-left:.5rem">
+                📍 Current Location
+            </button>
+        </div>
+        <div class="unit-row">
+            <label>Units:</label>
+            <button class="unit-btn @( _units == "metric" ? "active" : "" )" @onclick="SetUnitsCelsius">°C</button>
+            <button class="unit-btn @( _units == "imperial" ? "active" : "" )" @onclick="SetUnitsFahrenheit">°F</button>
+            <span class="small-text">Favorites:</span>
+            @foreach (var fav in _favorites)
+            {
+                <button class="pill small" @onclick="() => QuickLoad(fav)">@fav</button>
+            }
+            <button class="pill small" @onclick="ClearFavorites">Clear</button>
+        </div>
+    </div>
+
+    <div class="pill-row">
+        @foreach (var c in _quickCities)
+        {
+            var cn = c.Name; var fl = c.FlagEmoji;
+            <button class="pill" @onclick="@(() => QuickLoad(cn))">@fl @cn</button>
+        }
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="err-row">⚠️ @_error</div>
+    }
+
+    @if (_cur != null)
+    {
+        <div class="cur-band">
+            <span class="cb-icon">@WxEmoji(_cur.Condition, _cur.Description)</span>
+            <div>
+                <div class="cb-city">📍 @_cur.City, @_cur.Country</div>
+                <div class="cb-temp">@_cur.Temp°@(_cur.Units == "imperial" ? "F" : "C")</div>
+                <div class="cb-desc">@_cur.Description</div>
+            </div>
+        </div>
+    }
+
+    <div>
+        <div class="sec-title">📅 Daily Forecast</div>
+        @if (_forecast == null || !_forecast.Forecast.Any())
+        {
+            <div class="placeholder">
+                <span class="ph-ico">🌤️</span>
+                <div class="ph-txt">Enter a city above to see the 5-day forecast</div>
+            </div>
+        }
+        else
+        {
+            <div class="fcast-grid">
+                @for (int i = 0; i < _forecast.Forecast.Count; i++)
+                {
+                    var day   = _forecast.Forecast[i];
+                    var idx   = i;
+                    var dt    = DateTime.TryParse(day.Date, out var p) ? p : DateTime.Now.AddDays(idx);
+                    var lbl   = idx == 0 ? "Today" : dt.ToString("ddd");
+                    var today = idx == 0;
+                    <div class="fday @(today ? "is-today" : "")">
+                        <div class="fd-day">@lbl</div>
+                        <div class="fd-date">@dt.ToString("MMM d")</div>
+                        <span class="fd-icon">@WxEmoji("", day.Description)</span>
+                        <div class="fd-temps">
+                            <span class="fd-hi">@day.TempMax°</span>
+                            <span class="fd-lo">@day.TempMin°</span>
+                        </div>
+                        <div class="fd-desc">@day.Description</div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    @if (_cur != null && _forecast != null && _forecast.Forecast.Any())
+    {
+        <div>
+            <div class="sec-title">⏰ Hourly Timeline</div>
+            <div class="hourly-wrap">
+                <div class="hourly-track">
+                    @for (int h = 0; h < 24; h += 3)
+                    {
+                        var hh   = h;
+                        var fDay = (_forecast.Forecast.Count > 1 && hh >= 12)
+                                   ? _forecast.Forecast[1]
+                                   : _forecast.Forecast[0];
+                        var ratio = Math.Sin((hh / 24.0) * Math.PI);
+                        var temp  = (int)Math.Round(fDay.TempMin + (fDay.TempMax - fDay.TempMin) * ratio);
+                        var lbl   = hh==0?"12 AM":hh<12?$"{hh} AM":hh==12?"12 PM":$"{hh-12} PM";
+                        <div class="htick">
+                            <div class="ht-time">@lbl</div>
+                            <div class="ht-icon">@WxEmoji("", fDay.Description)</div>
+                            <div class="ht-temp">@temp°</div>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div class="sec-title">💡 Weather Tips</div>
+            <div class="tips-grid">
+                @foreach (var tip in GetTips(_cur))
+                {
+                    <div class="tip">
+                        <div class="tip-ico">@tip.Icon</div>
+                        <div>
+                            <div class="tip-title">@tip.Title</div>
+                            <div class="tip-body">@tip.Body</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private string           _city      = "";
+    private string           _units     = "metric";
+    private bool             _loading   = false;
+    private string           _error     = "";
+    private CurrentWeather?  _cur;
+    private WeatherForecast? _forecast;
+    private readonly List<string> _favorites = new();
+
+    private readonly (string Name, string FlagEmoji)[] _quickCities =
+    [
+        ("London","🇬🇧"), ("New York","🇺🇸"), ("Tokyo","🇯🇵"),
+        ("Mumbai","🇮🇳"), ("Sydney","🇦🇺"),   ("Dubai","🇦🇪"),
+        ("Paris","🇫🇷"),  ("Berlin","🇩🇪"),
+    ];
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoadForecast();
+    }
+
+    private async Task QuickLoad(string city)
+    {
+        _city = city;
+        await LoadForecast();
+    }
+
+    private async Task LoadForecast()
+    {
+        var city = _city.Trim();
+        if (string.IsNullOrEmpty(city)) return;
+
+        _loading  = true;
+        _error    = "";
+        _cur      = null;
+        _forecast = null;
+        StateHasChanged();
+
+        try
+        {
+            var t1 = WxSvc.GetCurrentWeatherAsync(city, _units);
+            var t2 = WxSvc.GetForecastAsync(city, 5, _units);
+            await Task.WhenAll(t1, t2);
+
+            var cur = t1.Result;
+            var fc  = t2.Result;
+
+            if (!string.IsNullOrEmpty(cur.Error))
+            {
+                _error = cur.Error;
+            }
+            else
+            {
+                _cur = cur;
+                if (!string.IsNullOrEmpty(fc.Error))
+                    _error = $"Forecast: {fc.Error}";
+                else
+                    _forecast = fc;
+            }
+
+            if (!string.IsNullOrEmpty(city) && !_favorites.Contains(city, StringComparer.OrdinalIgnoreCase))
+            {
+                _favorites.Insert(0, city);
+                if (_favorites.Count > 8) _favorites.RemoveAt(_favorites.Count - 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private record TipItem(string Icon, string Title, string Body);
+
+    private static IEnumerable<TipItem> GetTips(CurrentWeather d)
+    {
+        var c    = (d.Condition + " " + d.Description).ToLower();
+        var tips = new List<TipItem>();
+        if (c.Contains("rain") || c.Contains("drizzle"))
+            tips.Add(new("☂️","Carry an umbrella","Rain expected. Don't leave home without protection."));
+        if (c.Contains("snow"))
+            tips.Add(new("🧥","Dress in layers","Snow conditions — waterproof and insulated clothing recommended."));
+        if (c.Contains("clear") || c.Contains("sunny"))
+            tips.Add(new("🕶️","Apply sunscreen","Clear skies — wear SPF 30+ and sunglasses outside."));
+        if (d.Temp > 32)
+            tips.Add(new("💧","Stay hydrated",$"Very hot at {d.Temp}°C. Drink extra water and avoid midday sun."));
+        if (d.Temp < 5)
+            tips.Add(new("🧣","Bundle up",$"Cold at {d.Temp}°C. Hat, scarf, and a warm coat are essential."));
+        if (d.WindSpeed > 8)
+            tips.Add(new("💨","Strong winds",$"Winds at {d.WindSpeed} m/s. Drive carefully."));
+        if (d.Humidity > 80)
+            tips.Add(new("🌫️","High humidity",$"Humidity is {d.Humidity}%. Light, breathable clothing recommended."));
+        if (c.Contains("thunder") || c.Contains("storm"))
+            tips.Add(new("⚡","Storm warning","Thunderstorms possible. Stay indoors and avoid elevated areas."));
+        if (!tips.Any())
+            tips.Add(new("✅","Great conditions","Weather looks pleasant today. Perfect for outdoor activities!"));
+        return tips.Take(6);
+    }
+
+    private void SetUnits(string units)
+    {
+        _units = units;
+    }
+
+    private void SetUnitsCelsius() => SetUnits("metric");
+    private void SetUnitsFahrenheit() => SetUnits("imperial");
+
+    private void ClearFavorites()
+    {
+        _favorites.Clear();
+    }
+
+    private async Task UseMyLocation()
+    {
+        _loading = true;
+        _error = "";
+        _cur = null;
+        _forecast = null;
+        StateHasChanged();
+
+        try
+        {
+            var pos = await JS.InvokeAsync<GeolocationResult>("getGeolocation");
+            var t1 = WxSvc.GetCurrentWeatherByLocationAsync(pos.lat, pos.lon, _units);
+            var t2 = WxSvc.GetForecastByLocationAsync(pos.lat, pos.lon, 5, _units);
+            await Task.WhenAll(t1, t2);
+
+            var cur = t1.Result;
+            var fc = t2.Result;
+
+            if (!string.IsNullOrEmpty(cur.Error))
+            {
+                _error = cur.Error;
+            }
+            else
+            {
+                _cur = cur;
+                _city = cur.City;
+                if (!string.IsNullOrEmpty(fc.Error))
+                    _error = $"Forecast: {fc.Error}";
+                else
+                    _forecast = fc;
+            }
+
+            if (!string.IsNullOrEmpty(_city) && !_favorites.Contains(_city, StringComparer.OrdinalIgnoreCase))
+            {
+                _favorites.Insert(0, _city);
+                if (_favorites.Count > 8) _favorites.RemoveAt(_favorites.Count - 1);
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = $"📍 Location access failed: {ex.Message}. Please enter a city name manually.";
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+        }
+    }
+
+    private record GeolocationResult(
+        [property: System.Text.Json.Serialization.JsonPropertyName("lat")] double lat,
+        [property: System.Text.Json.Serialization.JsonPropertyName("lon")] double lon
+    );
+
+    private static string WxEmoji(string cond, string desc)
+    {
+        var c = (cond + " " + desc).ToLower();
+        if (c.Contains("thunder"))                        return "⛈️";
+        if (c.Contains("snow"))                           return "❄️";
+        if (c.Contains("drizzle"))                        return "🌦️";
+        if (c.Contains("rain"))                           return "🌧️";
+        if (c.Contains("fog") || c.Contains("mist"))     return "🌫️";
+        if (c.Contains("overcast"))                       return "☁️";
+        if (c.Contains("cloud"))                          return "⛅";
+        if (c.Contains("clear") || c.Contains("sunny"))  return "☀️";
+        return "🌤️";
+    }
+}

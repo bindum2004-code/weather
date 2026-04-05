@@ -1,0 +1,37 @@
+/* MainLayout responsive styles for .fab button */
+
+.fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 4rem;
+    height: 4rem;
+    background: linear-gradient(135deg, var(--amber), #f4b400);
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    box-shadow: 0 8px 32px rgba(245, 180, 0, 0.4);
+    z-index: 999;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    color: var(--bg1);
+}
+
+.fab:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 12px 40px rgba(245, 180, 0, 0.6);
+}
+
+@media (max-width: 768px) {
+    .fab { 
+        bottom: 1.5rem; 
+        right: 1.5rem; 
+        width: 3.5rem; 
+        height: 3.5rem; 
+        font-size: 1.3rem; 
+    }
+}
+

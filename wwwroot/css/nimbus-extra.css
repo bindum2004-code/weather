@@ -1,0 +1,86 @@
+/* ══════════════════════════════════════════════
+   Nimbus — Blazor-specific overrides
+   ══════════════════════════════════════════════ */
+
+/* Blazor error UI */
+#blazor-error-ui {
+  background: var(--bg2);
+  border-top: 2px solid var(--amber);
+  bottom: 32px; /* above ticker */
+  color: var(--text);
+  display: none;
+  font-family: var(--f-mono);
+  font-size: .75rem;
+  left: 0; right: 0;
+  padding: .85rem 1.5rem;
+  position: fixed;
+  z-index: 9000;
+}
+#blazor-error-ui .dismiss {
+  cursor: pointer;
+  color: var(--amber);
+  font-weight: 600;
+  float: right;
+}
+
+/* Remove default Blazor validation styles */
+.valid.modified:not([type=checkbox]) { outline: 1px solid var(--teal); }
+.invalid.modified:not([type=checkbox]) { outline: 1px solid var(--rose); }
+.validation-message { color: var(--rose); font-family: var(--f-mono); font-size: .72rem; margin-top: .25rem; }
+
+/* Blazor textarea auto-resize helper */
+.chat-ta {
+  field-sizing: content;
+}
+
+/* Chat layout fills page-wrap flex */
+.chat-layout {
+  height: 100%;
+  display: flex;
+  align-items: stretch;
+}
+
+/* Smooth page transition feel */
+.page-wrap, .hero, .chat-layout {
+  animation: fadeUp .45s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* ── Auth pages (Login / Register) ─────────────────── */
+/* bg3 fallback for input backgrounds */
+[data-theme="dark"]  { --bg3: #1a1a1a; }
+[data-theme="light"] { --bg3: #f0f0f0; }
+
+/* Ensure chat-layout inside page-wrap fills correctly */
+.page-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* chat-layout: sidebar + main side by side, full remaining height */
+.chat-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+/* Make chat-main a flex column so messages grow and input stays at bottom */
+.chat-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Messages area scrolls, fills remaining space */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* Input zone always pinned at bottom of chat-main */
+.input-zone {
+  flex-shrink: 0;
+}

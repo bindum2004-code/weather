@@ -1,0 +1,152 @@
+@page "/"
+
+<PageTitle>Nimbus — AI Weather Intelligence</PageTitle>
+
+<!-- HERO -->
+<section class="hero">
+    <div class="hero-left">
+        <div class="tag-bar">
+            <span class="tag-dot"></span>
+            <span class="tag-txt">Live · Groq · GPT-4o‑mini · OpenWeather</span>
+        </div>
+        <div class="hero-h1">WEATHER</div>
+        <div class="hero-h1">INTELLIGENCE</div>
+        <div class="hero-h1-amber">REDEFINED.</div>
+        <div class="hero-rule"></div>
+        <p class="hero-p">Ask anything about the weather in plain language. Real-time data, AI-powered insights, and live LLM function calling — all in one terminal.</p>
+        <div class="hero-btns">
+            <a href="/chat" class="btn-amber">Launch AI Chat ↗</a>
+            <a href="/dashboard" class="btn-wire">Live Dashboard</a>
+        </div>
+        <div class="hero-metrics">
+            <div class="hm-cell"><div class="hm-val">200+</div><div class="hm-key">Cities</div></div>
+            <div class="hm-cell"><div class="hm-val">LIVE</div><div class="hm-key">Data Feed</div></div>
+            <div class="hm-cell"><div class="hm-val">AI</div><div class="hm-key">Powered</div></div>
+        </div>
+    </div>
+
+    <div class="hero-right">
+        <div class="wx-card-main">
+            <div class="wxc-header">
+                <div class="wxc-loc">📍 <span>BANGALORE, IN</span></div>
+                <div class="wxc-live"><span class="live-dot"></span>LIVE</div>
+                <div class="wxc-time">@DateTime.Now.ToString("HH:mm")</div>
+            </div>
+            <div class="wxc-body">
+                <span class="wxc-icon">🌦️</span>
+                <div class="wxc-temp-wrap">
+                    <span class="wxc-temp">26</span>
+                    <span class="wxc-unit">°C</span>
+                </div>
+                <div class="wxc-cond">Partly cloudy</div>
+                <div class="wxc-grid">
+                    <div class="wxc-cell"><div class="wxc-cell-val">72%</div><div class="wxc-cell-key">Humidity</div></div>
+                    <div class="wxc-cell"><div class="wxc-cell-val">3.2 m/s</div><div class="wxc-cell-key">Wind</div></div>
+                    <div class="wxc-cell"><div class="wxc-cell-val">22°</div><div class="wxc-cell-key">Min</div></div>
+                    <div class="wxc-cell"><div class="wxc-cell-val">30°</div><div class="wxc-cell-key">Max</div></div>
+                </div>
+            </div>
+            <div class="wxc-footer">
+                <span class="wxc-ft-label">PRESSURE</span>
+                <span class="wxc-ft-val">1012 hPa</span>
+                <span class="wxc-ft-label">VISIBILITY</span>
+                <span class="wxc-ft-val">8 km</span>
+            </div>
+        </div>
+        <div class="mini-cards">
+            <div class="mini-card"><span class="mc-city">TOKYO</span><span class="mc-temp">☀️ 28°</span></div>
+            <div class="mini-card"><span class="mc-city">LONDON</span><span class="mc-temp">☁️ 14°</span></div>
+            <div class="mini-card"><span class="mc-city">NEW YORK</span><span class="mc-temp">⛅ 22°</span></div>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<div class="feat-strip">
+    <div class="feat-cell">
+        <div class="fc-num">/ 01</div>
+        <span class="fc-icon">🤖</span>
+        <div class="fc-title">AI Natural Language</div>
+        <div class="fc-body">Ask anything in plain English. Groq GPT-4o-mini picks the right function and fetches real-time data.</div>
+        <a href="/chat" class="fc-link">Open Chat ↗</a>
+        <div class="fc-bg-num">01</div>
+    </div>
+    <div class="feat-cell">
+        <div class="fc-num">/ 02</div>
+        <span class="fc-icon">📊</span>
+        <div class="fc-title">Live Dashboard</div>
+        <div class="fc-body">Animated metrics, pressure bars, world city grids — all live data.</div>
+        <a href="/dashboard" class="fc-link">Explore ↗</a>
+        <div class="fc-bg-num">02</div>
+    </div>
+    <div class="feat-cell">
+        <div class="fc-num">/ 03</div>
+        <span class="fc-icon">🗓️</span>
+        <div class="fc-title">5-Day Forecast</div>
+        <div class="fc-body">Hourly timelines + AI-generated tips based on real conditions.</div>
+        <a href="/forecast" class="fc-link">See Forecast ↗</a>
+        <div class="fc-bg-num">03</div>
+    </div>
+    <div class="feat-cell">
+        <div class="fc-num">/ 04</div>
+        <span class="fc-icon">⚡</span>
+        <div class="fc-title">Function Calling</div>
+        <div class="fc-body">Watch the AI choose and invoke API functions live — pure LLM architecture on display.</div>
+        <a href="/chat" class="fc-link">See It Live ↗</a>
+        <div class="fc-bg-num">04</div>
+    </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section class="section">
+    <div class="sec-eyebrow">Architecture</div>
+    <h2 class="sec-h2">HOW <span>FUNCTION CALLING</span><br>WORKS</h2>
+    <div class="steps-grid">
+        <div class="step" style="--i:0">
+            <div class="step-num">01</div>
+            <span class="step-ico">💬</span>
+            <div class="step-title">YOU ASK</div>
+            <div class="step-body">"What's the weather in Tokyo right now?"</div>
+        </div>
+        <div class="step" style="--i:1">
+            <div class="step-num">02</div>
+            <span class="step-ico">🧠</span>
+            <div class="step-title">AI DECIDES</div>
+            <div class="step-body">Groq GPT-4o-mini selects get_current_weather</div>
+        </div>
+        <div class="step" style="--i:2">
+            <div class="step-num">03</div>
+            <span class="step-ico">🌐</span>
+            <div class="step-title">API FETCHES</div>
+            <div class="step-body">OpenWeather returns live JSON</div>
+        </div>
+        <div class="step" style="--i:3">
+            <div class="step-num">04</div>
+            <span class="step-ico">✨</span>
+            <div class="step-title">AI RESPONDS</div>
+            <div class="step-body">Natural language answer + rich weather card</div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<div class="cta-wrap">
+    <span class="cta-icon">🌦️</span>
+    <div class="cta-h2">READY TO EXPLORE?</div>
+    <div class="cta-p">Ask anything about the weather, anywhere in the world.</div>
+    <div class="cta-btns">
+        <a href="/chat" class="btn-amber">Launch Nimbus AI ↗</a>
+        <a href="/dashboard" class="btn-wire">View Dashboard</a>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-brand">⛅ NIMBUS</div>
+    <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/chat">AI Chat</a>
+        <a href="/dashboard">Dashboard</a>
+        <a href="/forecast">Forecast</a>
+    </div>
+    <div class="footer-tag">.NET 8 · Blazor Server · Groq · GPT-4o-mini · OpenWeather</div>
+</footer>

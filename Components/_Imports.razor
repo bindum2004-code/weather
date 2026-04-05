@@ -1,0 +1,17 @@
+@using System.Net.Http
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Web.Virtualization
+@using Microsoft.JSInterop
+@using NimbusWeather
+@using NimbusWeather.Components
+@using NimbusWeather.Components.Layout
+@using NimbusWeather.Models
+@using NimbusWeather.Services
+@using Supabase
+@using Supabase.Gotrue
+@* BUG FIX: Removed @using Microsoft.AspNetCore.Authorization — AuthorizeView is no longer
+   used anywhere; the project uses SupabaseService.IsLoggedIn for auth checks instead. *@

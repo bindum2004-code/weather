@@ -1,0 +1,261 @@
+@page "/dashboard"
+@inject WeatherService WxSvc
+@inject IJSRuntime JS
+@using NimbusWeather.Models
+
+<PageTitle>Dashboard — Nimbus</PageTitle>
+
+<div class="page-wrap">
+
+    <div class="page-hd">
+        <div class="page-hd-left">
+            <div class="sec-eyebrow">Live Data</div>
+            <div class="pg-title">WEATHER DASHBOARD</div>
+            <div class="pg-sub">Real-time metrics for any city worldwide</div>
+        </div>
+        <div class="search-row">
+            <input class="search-inp"
+                   placeholder="Enter city name…"
+                   value="@_city"
+                   @oninput="@(e => _city = e.Value?.ToString() ?? "")"
+                   @onkeydown="HandleKey" />
+            <button class="search-go" @onclick="LoadDash" disabled="@_searching">
+                @(_searching ? "⏳" : "Search")
+            </button>
+            <div class="unit-row" style="margin-left:1rem;align-items:center;display:flex;gap:0.4rem;">
+                <span>Units:</span>
+                <button class="unit-btn @( _units == "metric" ? "active" : "" )" @onclick="SetUnitsCelsius">°C</button>
+                <button class="unit-btn @( _units == "imperial" ? "active" : "" )" @onclick="SetUnitsFahrenheit">°F</button>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <div class="err-row">⚠️ @_error</div>
+    }
+
+    <div class="wx-hero">
+        <div class="wx-hero-inner">
+            <div class="wxh-l">
+                <div class="wxh-city">
+                    @if (_wx != null) { <text>📍 @_wx.City, @_wx.Country</text> }
+                    else { <text>Search a city to begin</text> }
+                </div>
+                <div class="wxh-temp">@(_wx != null ? $"{_wx.Temp}°{(_wx.Units == "imperial" ? "F" : "C")}" : "—")</div>
+                <div class="wxh-cond">@(_wx?.Description ?? "—")</div>
+                <div class="wxh-date">@(_wx != null ? DateTime.Now.ToString("dddd, MMMM d yyyy") : "")</div>
+            </div>
+            <div class="wxh-r">
+                <span class="wxh-icon">@(_wx != null ? WxEmoji(_wx.Condition, _wx.Description) : "🌍")</span>
+                <div class="wxh-feels">@(_wx != null ? $"Feels like {_wx.FeelsLike}°{(_wx.Units == "imperial" ? "F" : "C")}" : "")</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="metric-grid">
+        <div class="metric-tile">
+            <span class="mt-icon">💧</span>
+            <div class="mt-label">Humidity</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.Humidity}%" : "—")</div>
+            <div class="mt-bar"><div class="mt-fill fill-a" style="width:@(_wx!=null?Math.Min(_wx.Humidity,100):0)%"></div></div>
+            <div class="mt-bg">RH</div>
+        </div>
+        <div class="metric-tile">
+            <span class="mt-icon">💨</span>
+            <div class="mt-label">Wind Speed</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.WindSpeed} m/s" : "—")</div>
+            <div class="mt-bar"><div class="mt-fill fill-b" style="width:@(_wx!=null?Math.Min(_wx.WindSpeed*5,100):0)%"></div></div>
+            <div class="mt-bg">WS</div>
+        </div>
+        <div class="metric-tile">
+            <span class="mt-icon">👁️</span>
+            <div class="mt-label">Visibility</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.Visibility} km" : "—")</div>
+            <div class="mt-bar"><div class="mt-fill fill-c" style="width:@(_wx!=null?Math.Min(_wx.Visibility*10,100):0)%"></div></div>
+            <div class="mt-bg">VI</div>
+        </div>
+        <div class="metric-tile">
+            <span class="mt-icon">🔵</span>
+            <div class="mt-label">Pressure</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.Pressure} hPa" : "—")</div>
+            <div class="mt-bar"><div class="mt-fill fill-d" style="width:@(_wx!=null?Math.Clamp((_wx.Pressure-950)/1.0,0,100):50)%"></div></div>
+            <div class="mt-bg">HP</div>
+        </div>
+        <div class="metric-tile">
+            <span class="mt-icon">⬇️</span>
+            <div class="mt-label">Min Temp</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.TempMin}°{(_wx.Units == "imperial" ? "F" : "C")}" : "—")</div>
+            <div class="mt-bg">LO</div>
+        </div>
+        <div class="metric-tile">
+            <span class="mt-icon">⬆️</span>
+            <div class="mt-label">Max Temp</div>
+            <div class="mt-value">@(_wx != null ? $"{_wx.TempMax}°{(_wx.Units == "imperial" ? "F" : "C")}" : "—")</div>
+            <div class="mt-bg">HI</div>
+        </div>
+    </div>
+
+    <div>
+        <div class="sec-title">🌍 World Cities — Live</div>
+        <div class="world-grid">
+            @foreach (var wc in _worldCities)
+            {
+                var cityName = wc.Name;
+                <div class="wc-card" @onclick="@(() => QuickLoad(cityName))">
+                    <div class="wcc-icon">
+                        @((MarkupString)(wc.Data != null
+                            ? WxEmoji(wc.Data.Condition, wc.Data.Description)
+                            : wc.FlagEmoji))
+                    </div>
+                    <div class="wcc-name">@wc.Name</div>
+                    <div class="wcc-temp" style="@(wc.Data==null?"font-size:.75rem;color:var(--text3)":"")">
+                        @(wc.Data != null ? $"{wc.Data.Temp}°C" : (wc.Loading ? "…" : "—"))
+                    </div>
+                    <div class="wcc-desc">
+                        @(wc.Data != null ? wc.Data.Description : (wc.Loading ? "Loading…" : "—"))
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div>
+        <div class="sec-title" style="font-size:1rem;margin-bottom:.7rem">Quick Load</div>
+        <div class="pill-row">
+            @foreach (var c in _quickCities)
+            {
+                var cn = c.Name; var fl = c.FlagEmoji;
+                <button class="pill" @onclick="@(() => QuickLoad(cn))">@fl @cn</button>
+            }
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private string          _city      = "";
+    private string          _units     = "metric";
+    private bool            _searching = false;
+    private string          _error     = "";
+    private CurrentWeather? _wx;
+
+    // Use a plain class — records with init-only props can't be mutated for reactive updates
+    private class CityEntry
+    {
+        public string          Name      { get; init; } = "";
+        public string          FlagEmoji { get; init; } = "🌍";
+        public CurrentWeather? Data      { get; set; }
+        public bool            Loading   { get; set; } = true;
+    }
+
+    // Flag emojis stored as strings — NOT country codes
+    private readonly (string Name, string FlagEmoji)[] _quickCities =
+    [
+        ("London","🇬🇧"), ("New York","🇺🇸"), ("Tokyo","🇯🇵"),
+        ("Mumbai","🇮🇳"), ("Dubai","🇦🇪"),    ("Sydney","🇦🇺"),
+        ("Paris","🇫🇷"),  ("Berlin","🇩🇪"),   ("Singapore","🇸🇬"),
+        ("Cairo","🇪🇬"),
+    ];
+
+    private readonly List<CityEntry> _worldCities =
+    [
+        new() { Name="London",   FlagEmoji="🇬🇧" },
+        new() { Name="New York", FlagEmoji="🇺🇸" },
+        new() { Name="Tokyo",    FlagEmoji="🇯🇵" },
+        new() { Name="Mumbai",   FlagEmoji="🇮🇳" },
+        new() { Name="Dubai",    FlagEmoji="🇦🇪" },
+        new() { Name="Sydney",   FlagEmoji="🇦🇺" },
+        new() { Name="Paris",    FlagEmoji="🇫🇷" },
+        new() { Name="Berlin",   FlagEmoji="🇩🇪" },
+    ];
+
+    protected override void OnInitialized()
+    {
+        // Don't await — fire background task so page renders immediately
+        _ = LoadWorldCitiesAsync();
+    }
+
+    private async Task LoadWorldCitiesAsync()
+    {
+        foreach (var wc in _worldCities)
+        {
+            wc.Loading = true;
+            try
+            {
+                var d = await WxSvc.GetCurrentWeatherAsync(wc.Name, _units);
+                wc.Data    = string.IsNullOrEmpty(d.Error) ? d : null;
+                wc.Loading = false;
+            }
+            catch
+            {
+                wc.Data    = null;
+                wc.Loading = false;
+            }
+            // Must use InvokeAsync when updating from a background context
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(300); // stagger to avoid rate limiting
+        }
+    }
+
+    private void SetUnits(string units)
+    {
+        _units = units;
+        if (!string.IsNullOrEmpty(_city)) _ = LoadDash();
+    }
+
+    private void SetUnitsCelsius() => SetUnits("metric");
+    private void SetUnitsFahrenheit() => SetUnits("imperial");
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await LoadDash();
+    }
+
+    private async Task QuickLoad(string city)
+    {
+        _city = city;
+        await LoadDash();
+    }
+
+    private async Task LoadDash()
+    {
+        var city = _city.Trim();
+        if (string.IsNullOrEmpty(city)) return;
+
+        _searching = true;
+        _error     = "";
+        _wx        = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await WxSvc.GetCurrentWeatherAsync(city, _units);
+            if (!string.IsNullOrEmpty(result.Error)) _error = result.Error;
+            else _wx = result;
+        }
+        catch (Exception ex)
+        {
+            _error = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            _searching = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string WxEmoji(string cond, string desc)
+    {
+        var c = (cond + " " + desc).ToLower();
+        if (c.Contains("thunder"))                        return "⛈️";
+        if (c.Contains("snow"))                           return "❄️";
+        if (c.Contains("drizzle"))                        return "🌦️";
+        if (c.Contains("rain"))                           return "🌧️";
+        if (c.Contains("fog") || c.Contains("mist"))     return "🌫️";
+        if (c.Contains("overcast"))                       return "☁️";
+        if (c.Contains("cloud"))                          return "⛅";
+        if (c.Contains("clear") || c.Contains("sunny"))  return "☀️";
+        return "🌤️";
+    }
+}

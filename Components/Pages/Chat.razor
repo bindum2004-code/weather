@@ -1,0 +1,350 @@
+@page "/chat"
+@inject GroqChatService ChatSvc
+@inject SupabaseService Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+@using NimbusWeather.Models
+
+<PageTitle>AI Chat — Nimbus</PageTitle>
+
+@if (!Supabase.IsLoggedIn)
+{
+    <div class="auth-wall">
+        <div class="auth-card">
+            <div class="auth-icon">🔒</div>
+            <h2 class="auth-title">NIMBUS AI CHAT</h2>
+            <p class="auth-sub">Sign in to access your AI-powered weather assistant.</p>
+            <a href="/login" class="btn-amber" style="display:block;text-align:center;padding:.85rem;text-decoration:none;border-radius:var(--r2);margin-bottom:.5rem;font-family:var(--f-mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;font-weight:600;background:var(--amber);color:var(--bg);">Sign In ↗</a>
+            <a href="/register" class="btn-wire" style="display:block;text-align:center;padding:.85rem;text-decoration:none;border-radius:var(--r2);font-family:var(--f-mono);font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border2);color:var(--text2);">Create Account</a>
+        </div>
+    </div>
+}
+else
+{
+    <ChatLayout IsCollapsed="@_sidebarCollapsed"
+                IsFullscreen="@_isFullscreen"
+                LastWeather="@_lastWeather"
+                LastLocation="@_lastLocation"
+                ApiCallLog="@_apiCallLog"
+                OnSidebarQuery="@HandleSidebarQuery">
+
+        <div class="chat-container">
+
+            <!-- TOPBAR -->
+            <div class="chat-topbar">
+                <div class="chat-topbar-l">
+                    <div class="chat-av av-ai">🤖</div>
+                    <div>
+                        <div class="chat-name">NIMBUS AI</div>
+                        <div class="chat-status">
+                            <span class="status-dot"></span>
+                            @(_loading ? "Thinking…" : $"Online · {ChatSvc.CurrentModel} · {_messages.Count} msgs")
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-topbar-r">
+                    <button class="topbar-btn clear-btn" @onclick="ClearChat">🗑 Clear</button>
+                    <button class="topbar-btn fs-btn" @onclick="ToggleFullscreen">
+                        @(_isFullscreen ? "⊡ Exit" : "⊞ Full")
+                    </button>
+                </div>
+            </div>
+
+            <!-- MESSAGES -->
+            <div class="messages" id="msgStream">
+                @foreach (var msg in _messages)
+                {
+                    <div class="msg-row @(msg.Role == "user" ? "msg-r" : "msg-l")">
+                        <div class="msg-av @(msg.Role == "user" ? "av-usr" : "av-ai")">
+                            @(msg.Role == "user" ? "👤" : "🤖")
+                        </div>
+                        <div class="bubble @(msg.Role == "user" ? "b-usr" : "b-ai")">
+                            @((MarkupString)msg.Content)
+
+                            @if (msg.WeatherData != null)
+                            {
+                                <div class="w-card">
+                                    <div class="wc-ico">@GetWeatherEmoji(msg.WeatherData)</div>
+                                    <div class="wc-right">
+                                        <div class="wc-city">@msg.WeatherData.City, @msg.WeatherData.Country</div>
+                                        <div class="wc-temp">@msg.WeatherData.Temp°<span class="wc-unit">@(msg.WeatherData.Units == "imperial" ? "F" : "C")</span></div>
+                                        <div class="wc-desc">@msg.WeatherData.Description</div>
+                                    </div>
+                                    <div class="wc-meta">
+                                        <span class="wc-stat">💧 @msg.WeatherData.Humidity%</span>
+                                        <span class="wc-stat">💨 @msg.WeatherData.WindSpeed m/s</span>
+                                        <span class="wc-stat">👁 @(msg.WeatherData.Visibility / 1000.0)km</span>
+                                        <span class="wc-stat">🌡 Feels @msg.WeatherData.FeelsLike°</span>
+                                    </div>
+                                </div>
+                            }
+
+                            @if (msg.Followups?.Any() == true)
+                            {
+                                <div class="followup-chips">
+                                    @foreach (var f in msg.Followups)
+                                    {
+                                        <button class="followup-chip" @onclick="@(() => SendDirectAsync(f))">@f</button>
+                                    }
+                                </div>
+                            }
+                            <span class="msg-time">@msg.Timestamp.ToLocalTime():HH:mm</span>
+                        </div>
+                    </div>
+                }
+
+                @if (_loading)
+                {
+                    <div class="typing-row">
+                        <div class="msg-av av-ai">🤖</div>
+                        <div class="typing-bubble">
+                            <span class="tdot"></span>
+                            <span class="tdot"></span>
+                            <span class="tdot"></span>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- INPUT -->
+            <div class="input-section">
+                <div class="quick-buttons">
+                    <button class="qb-btn" @onclick="@(() => SendDirectAsync("What is the weather in Tokyo right now?"))" disabled="@_loading">⛅ Tokyo</button>
+                    <button class="qb-btn" @onclick="@(() => SendDirectAsync("Give me the London weather forecast for 5 days"))" disabled="@_loading">🌧 London</button>
+                    <button class="qb-btn" @onclick="@(() => SendDirectAsync("Is it raining in New York City right now?"))" disabled="@_loading">☀ NYC</button>
+                    <button class="qb-btn loc-btn" @onclick="UseCurrentLocationAndSend" disabled="@_loading">
+                        @if (_locating)
+                        {
+                            <span class="send-spin" style="font-size:.75rem">⟳</span>
+                            <span>Locating…</span>
+                        }
+                        else
+                        {
+                            <span>📍</span>
+                            <span>My Location</span>
+                        }
+                    </button>
+                </div>
+
+                <div class="input-shell-row">
+                    <div class="input-pill @(_inputFocused ? "focused" : "")">
+                        <textarea @bind="_input"
+                                  @bind:event="oninput"
+                                  @onkeydown="HandleInputKey"
+                                  @onfocus="@(() => _inputFocused = true)"
+                                  @onblur="@(() => _inputFocused = false)"
+                                  rows="1"
+                                  placeholder="Ask about weather anywhere…"
+                                  disabled="@_loading"
+                                  class="message-input" />
+                        <button class="send-btn" @onclick="SendMessageAsync" disabled="@IsSendDisabled">
+                            @if (_loading)
+                            {
+                                <span class="send-spin">⟳</span>
+                            }
+                            else
+                            {
+                                <svg viewBox="0 0 24 24" fill="white" width="16" height="16"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                <div class="input-hint">
+                    @_viewCount views &nbsp;·&nbsp; Groq &amp; OpenWeather &nbsp;·&nbsp; Enter to send
+                </div>
+            </div>
+
+        </div>
+    </ChatLayout>
+}
+
+@code {
+    private List<Message> _messages = new();
+    private string _input = "";
+    private bool _loading;
+    private bool _locating;
+    private bool _sidebarCollapsed = false;
+    private bool _isFullscreen;
+    private bool _inputFocused;
+    private int _viewCount = 0;
+
+    private CurrentWeather? _lastWeather;
+    private LocationInfo? _lastLocation;
+    private List<string> _apiCallLog = new();
+
+    protected override void OnInitialized()
+    {
+        _messages.Add(new Message
+        {
+            Role = "assistant",
+            Content = "Welcome to <strong>Nimbus</strong>! 🌤️<br>Ask me about weather anywhere. Try the quick buttons or type a city name.",
+            IsWelcome = true,
+            Followups = new[] { "Tokyo weather?", "London forecast", "Is it raining in NYC?" }
+        });
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("incrementViewCount");
+                _viewCount = await JS.InvokeAsync<int>("getViewCount");
+                StateHasChanged();
+            }
+            catch { }
+        }
+    }
+
+    private bool IsSendDisabled => _loading || string.IsNullOrWhiteSpace(_input);
+
+    private string GetWeatherEmoji(CurrentWeather w) => w.Condition switch
+    {
+        "Clear"         => "☀️",
+        "Clouds"        => "☁️",
+        "Rain"          => "🌧️",
+        "Drizzle"       => "🌦️",
+        "Thunderstorm"  => "⛈️",
+        "Snow"          => "❄️",
+        "Mist" or "Fog" => "🌫️",
+        _               => "🌤️"
+    };
+
+    private async Task SendDirectAsync(string query)
+    {
+        if (_loading) return;
+        _input = query;
+        StateHasChanged();
+        await Task.Delay(50); // allow UI to show the text briefly
+        await SendMessageAsync();
+    }
+
+    private async Task HandleSidebarQuery(string query)
+    {
+        await SendDirectAsync(query);
+    }
+
+    private async Task HandleInputKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+            await SendMessageAsync();
+    }
+
+    private async Task SendMessageAsync()
+    {
+        if (IsSendDisabled) return;
+
+        var text = _input.Trim();
+        _input = "";
+
+        _messages.Add(new Message { Role = "user", Content = text, Timestamp = DateTime.UtcNow });
+        _loading = true;
+        StateHasChanged();
+        await JS.InvokeVoidAsync("scrollToBottom", "msgStream");
+
+        try
+        {
+            var history = _messages.SkipLast(1).TakeLast(9).Select(m => (m.Role, m.Content));
+            var response = await ChatSvc.SendMessageAsync(text, history);
+
+            if (response.Weather != null)
+            {
+                _lastWeather = response.Weather;
+                _lastLocation = new LocationInfo { City = response.Weather.City, Country = response.Weather.Country };
+                _apiCallLog.Insert(0, $"get_current_weather({response.Weather.City})");
+                if (_apiCallLog.Count > 6) _apiCallLog.RemoveAt(_apiCallLog.Count - 1);
+            }
+            if (response.Forecast != null)
+            {
+                _lastLocation ??= new LocationInfo { City = response.Forecast.City, Country = response.Forecast.Country };
+                _apiCallLog.Insert(0, $"get_weather_forecast({response.Forecast.City}, days=5)");
+                if (_apiCallLog.Count > 6) _apiCallLog.RemoveAt(_apiCallLog.Count - 1);
+            }
+
+            _messages.Add(new Message
+            {
+                Role = "assistant",
+                Content = response.Reply,
+                WeatherData = response.Weather,
+                Timestamp = DateTime.UtcNow,
+                Followups = response.Weather != null ? new[]
+                {
+                    $"5-day forecast for {response.Weather.City}?",
+                    $"What to wear in {response.Weather.City}?",
+                    "Compare with another city?"
+                } : null
+            });
+        }
+        catch (Exception ex)
+        {
+            _messages.Add(new Message { Role = "assistant", Content = $"⚠️ {ex.Message}", Timestamp = DateTime.UtcNow });
+        }
+        finally
+        {
+            _loading = false;
+            StateHasChanged();
+            await JS.InvokeVoidAsync("scrollToBottom", "msgStream");
+        }
+    }
+
+    private async Task UseCurrentLocationAndSend()
+    {
+        if (_loading) return;
+        _locating = true;
+        _loading = true;
+        StateHasChanged();
+        try
+        {
+            var pos = await JS.InvokeAsync<GeoPosition>("getGeolocation");
+            _lastLocation = new LocationInfo { Lat = pos.Lat, Lon = pos.Lon };
+            _locating = false;
+            _loading = false;
+            await SendDirectAsync($"What is the weather at latitude {pos.Lat:F4}, longitude {pos.Lon:F4}?");
+        }
+        catch (Exception ex)
+        {
+            _locating = false;
+            _loading = false;
+            _messages.Add(new Message
+            {
+                Role = "assistant",
+                Content = $"📍 <strong>Location access failed</strong><br><span style='color:var(--text2)'>{ex.Message}</span><br><br>Try typing your city name instead — e.g. <em>\"Weather in Bangalore\"</em>",
+                Timestamp = DateTime.UtcNow
+            });
+            StateHasChanged();
+            await JS.InvokeVoidAsync("scrollToBottom", "msgStream");
+        }
+    }
+
+    private void ToggleFullscreen() { _isFullscreen = !_isFullscreen; }
+    private void ClearChat()
+    {
+        _messages.Clear();
+        _apiCallLog.Clear();
+        _lastWeather = null;
+        _lastLocation = null;
+        _messages.Add(new Message
+        {
+            Role = "assistant",
+            Content = "Chat cleared. Where in the world do you want to check the weather? 🌍",
+            IsWelcome = true
+        });
+    }
+
+    private class Message
+    {
+        public string Role { get; set; } = "";
+        public string Content { get; set; } = "";
+        public DateTime Timestamp { get; set; }
+        public CurrentWeather? WeatherData { get; set; }
+        public string[]? Followups { get; set; }
+        public bool IsWelcome { get; set; }
+    }
+
+    private record GeoPosition(
+        [property: System.Text.Json.Serialization.JsonPropertyName("lat")] double Lat,
+        [property: System.Text.Json.Serialization.JsonPropertyName("lon")] double Lon
+    );
+}

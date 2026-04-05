@@ -1,0 +1,10 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.swp
+appsettings.Development.json
+*.db
+.nuget/

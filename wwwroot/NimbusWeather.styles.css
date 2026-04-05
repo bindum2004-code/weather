@@ -1,0 +1,6 @@
+/* Global Blazor styles */
+@import './css/nimbus.css';
+@import './css/nimbus-extra.css';
+
+/* Scoped spinner for auth */
+@keyframes spin { to { transform: rotate(360deg); } }

@@ -1,0 +1,319 @@
+@* Nimbus — 3-Column Chat Layout with live right panel *@
+@using Microsoft.AspNetCore.Components.Web
+@using NimbusWeather.Models
+@inherits LayoutComponentBase
+@inject IJSRuntime JS
+
+<div class="chat-app-layout @(IsCollapsed ? "sidebar-collapsed" : "") @(IsFullscreen ? "fullscreen" : "")">
+
+    <!-- ═══ LEFT SIDEBAR ═════════════════════════════════ -->
+    <aside class="chat-sidebar">
+        <div class="sidebar-header" @onclick="ToggleSidebar">
+            <div class="sh-left">
+                <span class="sh-icon">⚡</span>
+                <span class="sh-title">QUICK QUERIES</span>
+            </div>
+            <span class="sh-arrow">@(IsCollapsed ? "▶" : "◀")</span>
+        </div>
+
+        <div class="sb-body">
+        <div class="sb-section">
+            <div class="sb-section-label">🌍 Popular Cities</div>
+            <div class="sb-chips">
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("What is the weather in Tokyo right now?"))">
+                    <span class="sc-icon">⛅</span>
+                    <span class="sc-text">Tokyo, Japan</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("London weather forecast for 5 days"))">
+                    <span class="sc-icon">🌧️</span>
+                    <span class="sc-text">London, UK</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Is it raining in New York City?"))">
+                    <span class="sc-icon">☀️</span>
+                    <span class="sc-text">New York, USA</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("What is the weather in Paris today?"))">
+                    <span class="sc-icon">🌤️</span>
+                    <span class="sc-text">Paris, France</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Sydney Australia weather now"))">
+                    <span class="sc-icon">🌞</span>
+                    <span class="sc-text">Sydney, Australia</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Weather in Dubai right now"))">
+                    <span class="sc-icon">🏜️</span>
+                    <span class="sc-text">Dubai, UAE</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="sb-rule"></div>
+
+        <div class="sb-section">
+            <div class="sb-section-label">💡 Ask Nimbus</div>
+            <div class="sb-chips">
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Which city has the best weather today?"))">
+                    <span class="sc-icon">🏆</span>
+                    <span class="sc-text">Best weather today?</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Compare weather in Mumbai and Delhi"))">
+                    <span class="sc-icon">⚖️</span>
+                    <span class="sc-text">Compare two cities</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("What should I wear in Berlin today?"))">
+                    <span class="sc-icon">👗</span>
+                    <span class="sc-text">What to wear?</span>
+                </button>
+                <button class="sb-chip" @onclick="@(() => OnSidebarQuery.InvokeAsync("Is it a good day for outdoor activities in Rome?"))">
+                    <span class="sc-icon">🏃</span>
+                    <span class="sc-text">Good for outdoors?</span>
+                </button>
+            </div>
+        </div>
+
+        </div><!-- /sb-body -->
+        <div class="sb-footer">
+            <span class="sb-footer-txt">Powered by OpenWeather API</span>
+        </div>
+    </aside>
+
+    <!-- ═══ MAIN CHAT ═══════════════════════════════════ -->
+    <main class="chat-main">
+        @ChildContent
+    </main>
+
+    <!-- ═══ RIGHT INSIGHTS PANEL ════════════════════════ -->
+    <aside class="insights-panel">
+
+        <!-- Header -->
+        <div class="insights-header">
+            <span class="ih-label">LIVE DATA</span>
+            @if (!string.IsNullOrEmpty(LastWeather?.City))
+            {
+                <span class="insights-badge">@LastWeather.City</span>
+            }
+            else
+            {
+                <span class="insights-badge-empty">No data yet</span>
+            }
+        </div>
+
+        <!-- Weather Card -->
+        <div class="insight-card current-weather @(LastWeather == null ? "empty-card" : "")">
+            @if (LastWeather != null)
+            {
+                <div class="cw-top">
+                    <div class="cw-emoji">@GetWeatherEmoji(LastWeather)</div>
+                    <div class="cw-info">
+                        <div class="cw-temp">@LastWeather.Temp°<span class="cw-unit">@(LastWeather.Units == "imperial" ? "F" : "C")</span></div>
+                        <div class="cw-city">@LastWeather.City, @LastWeather.Country</div>
+                        <div class="cw-desc">@LastWeather.Description</div>
+                    </div>
+                </div>
+                <div class="cw-stats">
+                    <div class="cw-stat">
+                        <span class="cs-icon">🌡️</span>
+                        <span class="cs-label">Feels like</span>
+                        <span class="cs-val">@LastWeather.FeelsLike°</span>
+                    </div>
+                    <div class="cw-stat">
+                        <span class="cs-icon">💧</span>
+                        <span class="cs-label">Humidity</span>
+                        <span class="cs-val">@LastWeather.Humidity%</span>
+                    </div>
+                    <div class="cw-stat">
+                        <span class="cs-icon">💨</span>
+                        <span class="cs-label">Wind</span>
+                        <span class="cs-val">@LastWeather.WindSpeed m/s</span>
+                    </div>
+                    <div class="cw-stat">
+                        <span class="cs-icon">🔵</span>
+                        <span class="cs-label">Pressure</span>
+                        <span class="cs-val">@LastWeather.Pressure hPa</span>
+                    </div>
+                </div>
+                <!-- Temp range bar -->
+                <div class="temp-range">
+                    <span class="tr-lo">@LastWeather.TempMin°</span>
+                    <div class="tr-bar">
+                        <div class="tr-fill" style="width: @(GetTempFillPct(LastWeather))%"></div>
+                    </div>
+                    <span class="tr-hi">@LastWeather.TempMax°</span>
+                </div>
+            }
+            else
+            {
+                <div class="empty-state">
+                    <span class="empty-icon">🌐</span>
+                    <p>Ask about a city to see live weather here</p>
+                </div>
+            }
+        </div>
+
+        <!-- Temperature sparkline -->
+        <div class="insight-card chart-card">
+            <div class="ic-header">
+                <span class="ic-title">24H TREND</span>
+                @if (!string.IsNullOrEmpty(LastWeather?.City))
+                {
+                    <span class="ic-sub">@LastWeather.City</span>
+                }
+            </div>
+            <svg class="temp-chart" viewBox="0 0 200 60" preserveAspectRatio="none">
+                <defs>
+                    <linearGradient id="tg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="var(--amber)" stop-opacity="0.3"/>
+                        <stop offset="100%" stop-color="var(--amber)" stop-opacity="0.02"/>
+                    </linearGradient>
+                </defs>
+                <path d="@GetSparklinePath()" fill="url(#tg)" stroke="var(--amber)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <div class="chart-labels">
+                <span>00:00</span>
+                <span>06:00</span>
+                <span>12:00</span>
+                <span>18:00</span>
+                <span>Now</span>
+            </div>
+        </div>
+
+        <!-- API Call Log -->
+        <div class="insight-card logs-card">
+            <div class="ic-header">
+                <span class="ic-title">API CALLS</span>
+                @if (ApiCallLog?.Any() == true)
+                {
+                    <span class="log-count">@ApiCallLog.Count</span>
+                }
+            </div>
+            @if (ApiCallLog?.Any() == true)
+            {
+                <div class="log-list">
+                    @foreach (var log in ApiCallLog)
+                    {
+                        <div class="log-entry">
+                            <span class="log-bullet">⚡</span>
+                            <code class="log-code">@log</code>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="log-empty">No API calls yet</div>
+            }
+        </div>
+
+        <!-- Location Details -->
+        <div class="insight-card location-card">
+            <div class="ic-header">
+                <span class="ic-title">LOCATION</span>
+                <span class="loc-pin">📍</span>
+            </div>
+            @if (LastWeather != null)
+            {
+                <div class="loc-details">
+                    <div class="loc-city">@LastWeather.City</div>
+                    <div class="loc-country">@LastWeather.Country</div>
+                    <div class="loc-rows">
+                        <div class="loc-row">
+                            <span class="lr-label">Visibility</span>
+                            <span class="lr-val">@(LastWeather.Visibility / 1000.0)km</span>
+                        </div>
+                        <div class="loc-row">
+                            <span class="lr-label">Condition</span>
+                            <span class="lr-val lr-amber">@LastWeather.Condition</span>
+                        </div>
+                        @if (LastLocation?.Lat != 0)
+                        {
+                            <div class="loc-row">
+                                <span class="lr-label">Lat / Lon</span>
+                                <span class="lr-val">@LastLocation?.Lat.ToString("F2")° / @LastLocation?.Lon.ToString("F2")°</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            else if (LastLocation != null && LastLocation.Lat != 0)
+            {
+                <div class="loc-details">
+                    <div class="loc-row">
+                        <span class="lr-label">Latitude</span>
+                        <span class="lr-val">@LastLocation.Lat.ToString("F4")°</span>
+                    </div>
+                    <div class="loc-row">
+                        <span class="lr-label">Longitude</span>
+                        <span class="lr-val">@LastLocation.Lon.ToString("F4")°</span>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="log-empty">Ask about a city to see location details</div>
+            }
+        </div>
+
+    </aside>
+</div>
+
+@code {
+    [Parameter] public bool IsCollapsed  { get; set; }
+    [Parameter] public bool IsFullscreen { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public CurrentWeather? LastWeather  { get; set; }
+    [Parameter] public LocationInfo?   LastLocation { get; set; }
+    [Parameter] public List<string>?   ApiCallLog   { get; set; }
+    [Parameter] public EventCallback<string> OnSidebarQuery { get; set; }
+
+    private void ToggleSidebar() => IsCollapsed = !IsCollapsed;
+
+    private string GetWeatherEmoji(CurrentWeather w) => w.Condition switch
+    {
+        "Clear"         => "☀️",
+        "Clouds"        => "☁️",
+        "Rain"          => "🌧️",
+        "Drizzle"       => "🌦️",
+        "Thunderstorm"  => "⛈️",
+        "Snow"          => "❄️",
+        "Mist" or "Fog" => "🌫️",
+        _               => "🌤️"
+    };
+
+    private int GetTempFillPct(CurrentWeather w)
+    {
+        if (w.TempMax == w.TempMin) return 50;
+        var pct = (w.Temp - w.TempMin) / (w.TempMax - w.TempMin) * 100;
+        return (int)Math.Clamp(pct, 5, 95);
+    }
+
+    private string GetSparklinePath()
+    {
+        // Simulate a realistic-looking sparkline based on current temp
+        double baseTemp = LastWeather?.Temp ?? 20;
+        var pts = new double[] {
+            baseTemp - 3, baseTemp - 5, baseTemp - 4, baseTemp - 2,
+            baseTemp + 1, baseTemp + 4, baseTemp + 5, baseTemp + 3,
+            baseTemp + 2, baseTemp
+        };
+        double min = pts.Min(), max = pts.Max();
+        double range = max - min < 1 ? 1 : max - min;
+
+        var coords = pts.Select((t, i) => {
+            double x = (i / (double)(pts.Length - 1)) * 190 + 5;
+            double y = 55 - ((t - min) / range) * 50;
+            return (x, y);
+        }).ToList();
+
+        var path = $"M {coords[0].x:F1},{coords[0].y:F1} ";
+        for (int i = 1; i < coords.Count; i++)
+        {
+            var cp1x = (coords[i-1].x + coords[i].x) / 2;
+            path += $"C {cp1x:F1},{coords[i-1].y:F1} {cp1x:F1},{coords[i].y:F1} {coords[i].x:F1},{coords[i].y:F1} ";
+        }
+        // Close bottom for fill
+        path += $"L 195,58 L 5,58 Z";
+        return path;
+    }
+}
+
+@* chat-layout-responsive.css removed — its breakpoints conflicted with nimbus-fix.css *@

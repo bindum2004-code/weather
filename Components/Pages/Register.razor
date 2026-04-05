@@ -1,0 +1,262 @@
+@page "/register"
+@inject SupabaseService Supabase
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>Create Account — Nimbus</PageTitle>
+
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">⛅</div>
+        <div class="auth-title">Create Account</div>
+        <div class="auth-sub">Join Nimbus for AI weather chat and personalized dashboards.</div>
+
+        <div class="auth-field">
+            <label class="auth-label">Email</label>
+            <div class="auth-input-wrap">
+                <span class="auth-icon">✉️</span>
+                <input class="auth-input"
+                       type="email"
+                       placeholder="you@example.com"
+                       @bind="_email"
+                       @onkeydown="HandleKey"
+                       disabled="@_loading" />
+            </div>
+        </div>
+
+        <div class="auth-field">
+            <label class="auth-label">Password <span style="color:var(--text2);font-weight:400;">(min 6 chars)</span></label>
+            <div class="auth-input-wrap">
+                <span class="auth-icon">🔒</span>
+                <input class="auth-input"
+                       type="@(_showPwd ? "text" : "password")"
+                       placeholder="••••••••"
+                       @bind="_password"
+                       @onkeydown="HandleKey"
+                       disabled="@_loading" />
+                <button class="auth-eye" type="button" @onclick="() => _showPwd = !_showPwd">
+                    @(_showPwd ? "🙈" : "👁️")
+                </button>
+            </div>
+        </div>
+
+        <div class="auth-field">
+            <label class="auth-label">Confirm Password</label>
+            <div class="auth-input-wrap @(_confirmMismatch ? "input-error" : "")">
+                <span class="auth-icon">🔒</span>
+                <input class="auth-input"
+                       type="@(_showPwd ? "text" : "password")"
+                       placeholder="••••••••"
+                       @bind="_confirm"
+                       @onkeydown="HandleKey"
+                       disabled="@_loading" />
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_error))
+        {
+            <div class="auth-error">
+                <span>⚠️</span> @_error
+            </div>
+        }
+
+        @if (_success)
+        {
+            <div class="auth-success">
+                <span>✅</span> Account created! Check your email to confirm, then <a href="/login">sign in</a>.
+            </div>
+        }
+
+        <button class="auth-btn" @onclick="RegisterAsync" disabled="@(_loading || _success)">
+            @if (_loading)
+            {
+                <span class="auth-spinner"></span>
+                <span>Creating account…</span>
+            }
+            else
+            {
+                <span>Create Account ↗</span>
+            }
+        </button>
+
+        <div class="auth-divider"><span>or</span></div>
+
+        <a href="/login" class="auth-link-btn">Already have an account? Sign in</a>
+    </div>
+</div>
+
+@code {
+    private string _email    = "";
+    private string _password = "";
+    private string _confirm  = "";
+    private bool   _loading  = false;
+    private bool   _showPwd  = false;
+    private bool   _success  = false;
+    private string _error    = "";
+
+    // BUG FIX: Added client-side validation that was missing (no confirm password check existed)
+    private bool _confirmMismatch => !string.IsNullOrEmpty(_confirm) && _confirm != _password;
+
+    private async Task HandleKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await RegisterAsync();
+    }
+
+    private async Task RegisterAsync()
+    {
+        _error = "";
+
+        if (string.IsNullOrWhiteSpace(_email))     { _error = "Email is required."; return; }
+        if (string.IsNullOrWhiteSpace(_password))  { _error = "Password is required."; return; }
+        if (_password.Length < 6)                  { _error = "Password must be at least 6 characters."; return; }
+        if (_password != _confirm)                 { _error = "Passwords do not match."; return; }
+
+        _loading = true;
+        StateHasChanged();
+
+        // BUG FIX: Old code called RegisterAsync returning bool with no error detail.
+        // New service returns (bool Ok, string? Error) for meaningful error messages.
+        var (ok, err) = await Supabase.RegisterAsync(_email, _password);
+
+        if (ok)
+        {
+            _success = true;
+            try { await JS.InvokeVoidAsync("showToast", "Account created! Check your email."); } catch { }
+        }
+        else
+        {
+            _error = err ?? "Registration failed. The email may already be in use.";
+        }
+
+        _loading = false;
+        StateHasChanged();
+    }
+}
+
+<style>
+    /* Auth styles shared — identical to Login for consistency */
+    .auth-page {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    .auth-card {
+        background: var(--bg2);
+        border: 1px solid var(--border2);
+        border-radius: var(--r);
+        padding: 2.5rem 2rem;
+        width: 100%;
+        max-width: 420px;
+        display: flex;
+        flex-direction: column;
+        gap: 1.2rem;
+        box-shadow: var(--shadow-lg);
+    }
+    .auth-logo { font-size: 2.5rem; text-align: center; }
+    .auth-title {
+        font-family: var(--f-mono);
+        font-size: 1.5rem;
+        font-weight: 700;
+        text-align: center;
+        color: var(--text);
+        letter-spacing: 0.02em;
+    }
+    .auth-sub { font-size: 0.85rem; color: var(--text2); text-align: center; line-height: 1.5; }
+    .auth-field { display: flex; flex-direction: column; gap: 0.4rem; }
+    .auth-label {
+        font-family: var(--f-mono);
+        font-size: 0.72rem;
+        color: var(--text2);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .auth-input-wrap {
+        display: flex;
+        align-items: center;
+        background: var(--bg3, var(--bg));
+        border: 1px solid var(--border2);
+        border-radius: var(--r);
+        padding: 0 0.9rem;
+        gap: 0.6rem;
+        transition: border-color 0.2s;
+    }
+    .auth-input-wrap:focus-within { border-color: var(--amber); }
+    .auth-input-wrap.input-error  { border-color: var(--rose, #ef4444); }
+    .auth-icon { font-size: 0.9rem; flex-shrink: 0; }
+    .auth-input {
+        flex: 1;
+        background: transparent;
+        border: none;
+        outline: none;
+        color: var(--text);
+        font-family: var(--f-mono);
+        font-size: 0.9rem;
+        padding: 0.75rem 0;
+    }
+    .auth-input::placeholder { color: var(--text2); opacity: 0.6; }
+    .auth-eye {
+        background: none; border: none; cursor: pointer;
+        padding: 0; font-size: 1rem; line-height: 1; opacity: 0.7; transition: opacity 0.2s;
+    }
+    .auth-eye:hover { opacity: 1; }
+    .auth-error {
+        display: flex; align-items: center; gap: 0.5rem;
+        background: rgba(239,68,68,0.12);
+        border: 1px solid rgba(239,68,68,0.3);
+        border-radius: var(--r);
+        padding: 0.65rem 0.9rem;
+        font-size: 0.82rem;
+        color: var(--rose, #ef4444);
+        font-family: var(--f-mono);
+    }
+    .auth-success {
+        display: flex; align-items: center; gap: 0.5rem;
+        background: rgba(16,185,129,0.12);
+        border: 1px solid rgba(16,185,129,0.3);
+        border-radius: var(--r);
+        padding: 0.65rem 0.9rem;
+        font-size: 0.82rem;
+        color: var(--teal, #10b981);
+        font-family: var(--f-mono);
+    }
+    .auth-success a { color: var(--amber); }
+    .auth-btn {
+        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        background: var(--amber); color: #000;
+        border: none; border-radius: var(--r);
+        padding: 0.85rem;
+        font-family: var(--f-mono); font-size: 0.95rem; font-weight: 700;
+        cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+        letter-spacing: 0.04em;
+    }
+    .auth-btn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+    .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .auth-spinner {
+        width: 16px; height: 16px;
+        border: 2px solid rgba(0,0,0,0.3);
+        border-top-color: #000;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        flex-shrink: 0;
+    }
+
+    .auth-divider {
+        display: flex; align-items: center; gap: 0.75rem;
+        color: var(--text2); font-size: 0.78rem;
+    }
+    .auth-divider::before, .auth-divider::after {
+        content: ''; flex: 1; height: 1px; background: var(--border2);
+    }
+    .auth-link-btn {
+        display: block; text-align: center;
+        padding: 0.75rem;
+        border: 1px solid var(--border2);
+        border-radius: var(--r);
+        color: var(--text);
+        font-family: var(--f-mono); font-size: 0.88rem;
+        text-decoration: none; transition: border-color 0.2s, color 0.2s;
+    }
+    .auth-link-btn:hover { border-color: var(--amber); color: var(--amber); }
+</style>
