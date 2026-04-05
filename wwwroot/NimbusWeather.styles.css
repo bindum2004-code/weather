@@ -4,3 +4,10 @@
 
 /* Scoped spinner for auth */
 @keyframes spin { to { transform: rotate(360deg); } }
+/* Global Blazor styles */
+/* NOTE: nimbus.css and nimbus-extra.css are already loaded via <link> tags in App.razor.
+   Do NOT re-import them here — doing so loads them a second time AFTER nimbus-premium.css,
+   causing the old 20%/60%/20% grid to override the correct column layout. */
+
+/* Scoped spinner for auth */
+@keyframes spin { to { transform: rotate(360deg); } }
