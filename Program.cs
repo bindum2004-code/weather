@@ -1,6 +1,12 @@
 using NimbusWeather.Services;
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = Directory.GetCurrentDirectory()
+});
 
-var builder = WebApplication.CreateBuilder(args);
+// 🔥 ADD THIS LINE
+builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: false);
 
 // ── Blazor Server ────────────────────────────────────────
 builder.Services.AddRazorComponents()
